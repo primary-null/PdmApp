@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PDM</string>
+    <string name="tile_label">PDM fleet</string>
+    <string name="widget_description">Fleet counts and status. No host or names on the home screen.</string>
+</resources>

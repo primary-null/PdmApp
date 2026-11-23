@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        All install-time ("normal") except POST_NOTIFICATIONS, asked once when a shell opens on
+        Android 13+; declining only hides the shell notification. The reasons
+        users see in Settings > Permissions live in data/AppPermissions.kt; ManifestPolicyTest fails
+        the build if this list and those reasons drift apart, or if a refused permission appears.
+
+        No storage permission, on purpose: credentials, the offline cache and preferences all live in
+        app-private storage (see Settings > Storage), which needs none.
+
+        Local network: on targetSdk 36 and below, INTERNET covers LAN access (the PDM server and the
+        login scan). Google's guidance is to NOT declare ACCESS_LOCAL_NETWORK before targeting 37.
+        When targetSdk moves to 37, declare it here and request it at runtime before the scan and
+        the first connection; ManifestPolicyTest enforces both directions.
+    -->
+    <!-- HTTPS to the PDM server, the LAN scan probes, and the node-shell websocket. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Which networks are up: reconnect when the network returns, choose subnets to scan. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Pull-to-refresh ticks and the Clean Slate hold ramp. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Keep the app alive while a node shell is open (apt full-upgrade survives leaving the app). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- The "shell open" notification that foreground service must show (asked for on Android 13+; optional). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Optional screen lock check before Stop, Shutdown, rollback (Settings > Extras; off by default). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <application
+        android:name=".PdmApp"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PdmApp"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <!-- Samsung DeX: keep the process (and the in-memory ticket) alive across docking and density changes. -->
+        <meta-data
+            android:name="com.samsung.android.keepalive.density"
+            android:value="true" />
+        <meta-data
+            android:name="com.samsung.android.multidisplay.keep_process_alive"
+            android:value="true" />
+
+        <!--
+            Runs only while the user has a node shell open; stops when it closes. specialUse because no
+            standard type fits keeping a remote admin terminal connected.
+        -->
+        <service
+            android:name=".data.shell.ShellKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a user-opened remote admin shell (apt full-upgrade on a Proxmox node) connected while the app is in the background, so the upgrade is not interrupted." />
+        </service>
+
+        <!--
+            Quick Settings tile: fleet state, opens the app. Shows only counts; never signs in by itself.
+        -->
+        <service
+            android:name=".system.FleetTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_fleet"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
+        <!--
+            Android 11+ device controls: guests as power toggles. Acts only through the open app's own
+            power path and permissions; Android asks for the screen lock first.
+        -->
+        <service
+            android:name=".system.FleetControlsService"
+            android:enabled="@bool/controls_enabled"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_CONTROLS"
+            tools:targetApi="30">
+            <intent-filter>
+                <action android:name="android.service.controls.ControlsProviderService" />
+            </intent-filter>
+        </service>
+
+        <!-- Home-screen widget: counts and status only. -->
+        <receiver
+            android:name=".system.FleetWidget"
+            android:exported="false"
+            android:label="@string/tile_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fleet_info" />
+        </receiver>
+
+        <!--
+            singleTask: launcher shortcuts, the tile, the widget and device controls reach the open
+            screen (onNewIntent) instead of stacking a second one without the session.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|navigation|smallestScreenSize|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Desktop windowing: open two-pane wide (Android 16 floor is 386x352 dp). -->
+            <layout
+                android:defaultWidth="800dp"
+                android:defaultHeight="600dp"
+                android:minWidth="386dp"
+                android:minHeight="352dp" />
+            <meta-data
+                android:name="com.samsung.android.dex.launchwidth"
+                android:value="800" />
+            <meta-data
+                android:name="com.samsung.android.dex.launchheight"
+                android:value="600" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

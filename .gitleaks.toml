@@ -1,0 +1,14 @@
+title = "PdmApp secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Reviewed xterm.js export aliases; these are JavaScript code, not credentials"
+condition = "AND"
+paths = ['''(^|/)app/src/main/assets/xterm/xterm\.js$''']
+regexTarget = "match"
+regexes = [
+  '''t\.FourKeyMap=t\.TwoKeyMap=void''',
+  '''t\.SequencerByKey=t\.Sequencer=t\.Throttler=void''',
+]

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="xterm.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #term { position: absolute; top: 4px; left: 6px; }
+</style>
+</head>
+<body>
+<div id="term"></div>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
+<script>
+  // Local page, no network. Bytes come in from Kotlin as base64; keystrokes go back through PdmTerm.
+  // Light: the app's paper and ink, and ANSI colours dark enough to read on paper (stock
+  // yellow and white vanish there). Dark: the original console.
+  const light = new URLSearchParams(location.search).get('theme') === 'light';
+  const theme = light ? {
+    background: '#EFECE5', foreground: '#1C1B18', cursor: '#9C4C00', cursorAccent: '#EFECE5',
+    selectionBackground: '#9C4C0040',
+    black: '#1C1B18', red: '#B8241D', green: '#08703F', yellow: '#7A5A00',
+    blue: '#1F5FA8', magenta: '#A8255A', cyan: '#006C80', white: '#66625A',
+    brightBlack: '#4A463F', brightRed: '#9E1B15', brightGreen: '#065C33', brightYellow: '#6A4C00',
+    brightBlue: '#184C88', brightMagenta: '#8C1E4A', brightCyan: '#005566', brightWhite: '#1C1B18',
+  } : {
+    background: '#000000', foreground: '#d8dee4', cursor: '#ffb000', cursorAccent: '#000000',
+    selectionBackground: '#ffb00055',
+  };
+  document.documentElement.style.background = theme.background;
+  document.body.style.background = theme.background;
+  const term = new Terminal({
+    cursorBlink: true,
+    fontFamily: 'monospace',
+    fontSize: Math.max(12, Math.min(15, Math.round(window.innerWidth / 70))),
+    scrollback: 5000,
+    theme,
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(document.getElementById('term'));
+  term.onData(d => PdmTerm.input(d));
+  term.onResize(s => PdmTerm.resize(s.cols, s.rows));
+  function refit() {
+    // Size the box from the window itself: this WebView left the CSS-positioned box at 0 px high,
+    // and xterm fits to its parent's height (one row, every time).
+    const box = document.getElementById('term');
+    box.style.height = Math.max(0, window.innerHeight - 8) + 'px';
+    box.style.width = Math.max(0, window.innerWidth - 12) + 'px';
+    try { fit.fit(); PdmTerm.resize(term.cols, term.rows); } catch (e) {}
+  }
+  // Kotlin calls this when the view changes size: the page can load before the view has a height.
+  window.pdmFit = refit;
+  window.addEventListener('resize', refit);
+  window.pdmWrite = b64 => {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    term.write(bytes);
+  };
+  window.pdmFocus = () => term.focus();
+  refit();
+  term.focus();
+  PdmTerm.ready();
+</script>
+</body>
+</html>

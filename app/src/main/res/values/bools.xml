@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Device controls exist from Android 11 (values-v30 turns them on). -->
+    <bool name="controls_enabled">false</bool>
+</resources>

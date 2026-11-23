@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The dark tech palette (ui/components/TechPlate.kt) for surfaces drawn outside Compose. -->
+    <color name="widget_hull">#FF050505</color>
+    <color name="widget_edge">#FF3D3D3D</color>
+    <color name="widget_ink">#FFFFFFFF</color>
+    <color name="widget_mute">#FF757575</color>
+    <color name="widget_good">#FF69F0AE</color>
+    <color name="widget_bad">#FFFF9800</color>
+    <color name="widget_amber">#FFFF9800</color>
+</resources>
