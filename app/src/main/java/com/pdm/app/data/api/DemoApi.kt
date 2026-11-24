@@ -4,6 +4,7 @@ import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.MediaType.Companion.toMediaType
 import com.pdm.app.data.DemoFleet
+import com.pdm.app.data.DemoHistory
 import com.pdm.app.data.FleetMapper
 import com.pdm.app.data.model.ByteStatisticsDto
 import com.pdm.app.data.model.CountTriple
@@ -44,7 +45,6 @@ import com.pdm.app.data.model.RemoteSubscription
 import com.pdm.app.data.model.RemoteTaskDto
 import com.pdm.app.data.model.SnapshotDto
 import com.pdm.app.data.model.TaskPhase
-import com.pdm.app.data.model.ResourceRrdData
 import com.pdm.app.data.model.ResourcesStatus
 import com.pdm.app.data.model.TaskLogLine
 import com.pdm.app.data.model.TaskStatus
@@ -64,7 +64,7 @@ import retrofit2.HttpException
 import retrofit2.Response
 
 /** In-memory PDM. Host `demo` never opens a socket. */
-class DemoApi : PdmApi {
+class DemoApi(private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1000 }) : PdmApi {
     private val lock = Any()
     private val guests = DemoFleet.guests().toMutableList()
 
@@ -200,8 +200,9 @@ class DemoApi : PdmApi {
     }
 
     override suspend fun topEntities(timeframe: String): PdmResponse<TopEntities> {
+        val window = DemoHistory.window(timeframe, nowSeconds())
         val snapshot = synchronized(lock) { guests.toList() }
-        val guestLeaders = snapshot.take(5).mapIndexed { index, guest ->
+        val guestLeaders = snapshot.take(5).map { guest ->
             TopEntityDto(
                 remote = guest.remoteId,
                 resource = PdmResource(
@@ -210,38 +211,21 @@ class DemoApi : PdmApi {
                     name = guest.name,
                     node = guest.node,
                 ),
-                rrdData = ResourceRrdData(
-                    start = 1_700_000_000,
-                    resolution = 60,
-                    data = DemoFleet.series(index, base = 0.15),
-                ),
+                rrdData = DemoHistory.leaderSeries(window, guest.vmid),
             )
         }
-        val nodeLeaders = DemoFleet.nodes().mapIndexed { index, node ->
+        val nodeLeaders = DemoFleet.nodes().map { node ->
             TopEntityDto(
                 remote = node.remoteId,
                 resource = PdmResource(type = "pve-node", node = node.name, name = node.name),
-                rrdData = ResourceRrdData(
-                    start = 1_700_000_000,
-                    resolution = 60,
-                    data = DemoFleet.series(index + 3, base = node.cpu ?: 0.2),
-                ),
+                rrdData = DemoHistory.leaderSeries(window, node.name.hashCode()),
             )
         }
-        val memLeaders = DemoFleet.nodes().mapIndexed { index, node ->
-            val ratio = if (node.maxmem != null && node.maxmem > 0 && node.mem != null) {
-                node.mem.toDouble() / node.maxmem
-            } else {
-                0.3
-            }
+        val memLeaders = DemoFleet.nodes().map { node ->
             TopEntityDto(
                 remote = node.remoteId,
                 resource = PdmResource(type = "pve-node", node = node.name, name = node.name),
-                rrdData = ResourceRrdData(
-                    start = 1_700_000_000,
-                    resolution = 60,
-                    data = DemoFleet.series(index + 7, base = ratio),
-                ),
+                rrdData = DemoHistory.leaderSeries(window, node.name.hashCode(), memory = true),
             )
         }
         return PdmResponse(
@@ -374,26 +358,27 @@ class DemoApi : PdmApi {
         vmid: Long,
         timeframe: String,
         cf: String,
-    ): PdmResponse<List<JsonObject>> = PdmResponse(data = demoRrd(seed = vmid.toInt()))
+    ): PdmResponse<List<JsonObject>> = PdmResponse(data = demoRrd(seed = vmid.toInt(), timeframe = timeframe))
 
     override suspend fun nodeRrd(
         remote: String,
         node: String,
         timeframe: String,
         cf: String,
-    ): PdmResponse<List<JsonObject>> = PdmResponse(data = demoRrd(seed = node.hashCode()))
+    ): PdmResponse<List<JsonObject>> = PdmResponse(data = demoRrd(seed = node.hashCode(), timeframe = timeframe))
 
-    private fun demoRrd(seed: Int, points: Int = 70): List<JsonObject> {
-        val now = System.currentTimeMillis() / 1000
-        return List(points) { i ->
-            val wave = (kotlin.math.sin((i + seed % 17) / 6.0) + 1.0) / 2.0
+    private fun demoRrd(seed: Int, timeframe: String): List<JsonObject> {
+        val window = DemoHistory.window(timeframe, nowSeconds())
+        return List(window.samples) { i ->
+            val time = window.timeAt(i)
+            val wave = DemoHistory.cpu(seed, time)
             JsonObject(
                 mapOf(
-                    "time" to JsonPrimitive(now - (points - i) * 60L),
-                    "cpu-current" to JsonPrimitive(0.05 + wave * 0.4),
+                    "time" to JsonPrimitive(time),
+                    "cpu-current" to JsonPrimitive(wave),
                     "cpu-max" to JsonPrimitive(4.0),
                     "cpu-avg1" to JsonPrimitive(0.4 + wave * 1.2),
-                    "mem-used" to JsonPrimitive(((0.3 + wave * 0.2) * 8_589_934_592).toLong()),
+                    "mem-used" to JsonPrimitive((DemoHistory.memoryRatio(seed, time) * 8_589_934_592).toLong()),
                     "mem-total" to JsonPrimitive(8_589_934_592L),
                     "net-in" to JsonPrimitive(2_000.0 + wave * 40_000.0),
                     "net-out" to JsonPrimitive(500.0 + wave * 9_000.0),
@@ -832,7 +817,7 @@ class DemoApi : PdmApi {
         timeframe: String,
         cf: String,
     ): PdmResponse<List<JsonObject>> =
-        PdmResponse(data = demoRrd(seed = 42))
+        PdmResponse(data = demoRrd(seed = 42, timeframe = timeframe))
 
     private fun sha256Hex(text: String): String {
         val bytes = java.security.MessageDigest.getInstance("SHA-256")

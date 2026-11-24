@@ -2778,9 +2778,23 @@ class FleetViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (!live) return
         val state = _fleet.value
+        val sample = historySample(state)
+        val next = com.pdm.app.data.FleetHistory.add(state.history, sample)
+        _fleet.update { it.copy(history = next) }
+        if (sample.t - historySavedAt >= HISTORY_SAVE_MS) {
+            historySavedAt = sample.t
+            val bytes = com.pdm.app.data.api.AppJson.encodeToString(
+                com.pdm.app.data.FleetHistoryFile.serializer(),
+                com.pdm.app.data.FleetHistoryFile(next),
+            ).encodeToByteArray()
+            cache.putAsync(login, HISTORY_KEY, bytes)
+        }
+    }
+
+    private fun historySample(state: FleetUiState): com.pdm.app.data.FleetSample {
         val m = state.metrics
         val roll = state.tasks?.taskRollup()
-        val sample = com.pdm.app.data.FleetSample(
+        return com.pdm.app.data.FleetSample(
             t = System.currentTimeMillis(),
             remotes = state.remotes.size,
             remotesOk = state.remotes.count { it.error.isNullOrBlank() },
@@ -2797,16 +2811,6 @@ class FleetViewModel(application: Application) : AndroidViewModel(application) {
             sdnOk = m.sdnAvailable,
             sdnError = m.sdnError,
         )
-        val next = com.pdm.app.data.FleetHistory.add(state.history, sample)
-        _fleet.update { it.copy(history = next) }
-        if (sample.t - historySavedAt >= HISTORY_SAVE_MS) {
-            historySavedAt = sample.t
-            val bytes = com.pdm.app.data.api.AppJson.encodeToString(
-                com.pdm.app.data.FleetHistoryFile.serializer(),
-                com.pdm.app.data.FleetHistoryFile(next),
-            ).encodeToByteArray()
-            cache.putAsync(login, HISTORY_KEY, bytes)
-        }
     }
 
     /** Open or close the LIVE panel. The request feed runs while it is open, even if the background is off. */
@@ -3104,7 +3108,13 @@ class FleetViewModel(application: Application) : AndroidViewModel(application) {
                 },
             )
         }
-        if (!demo) recordHistory(ResponseCache.loginKey(SessionIdentity.of(session.config)), live = cachedAt == null)
+        if (demo) {
+            // Never read or write a real connection's recorded history while in the demo.
+            historyFor = null
+            _fleet.update { state -> state.copy(history = com.pdm.app.data.DemoHistory.fleetSamples(historySample(state))) }
+        } else {
+            recordHistory(ResponseCache.loginKey(SessionIdentity.of(session.config)), live = cachedAt == null)
+        }
         // First load of a session with the dashboard expanded: fetch its graphs too.
         if (_fleet.value.dashboardExpanded && _fleet.value.trend == null) loadTrend()
         val live = cachedAt == null && !session.cachedOnly
