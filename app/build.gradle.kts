@@ -14,8 +14,8 @@ android {
         minSdk = 27
         // 37 (Android 17) makes LAN access a runtime permission: see the note in AndroidManifest.xml.
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.3.30"
+        versionCode = 22
+        versionName = "0.3.31"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

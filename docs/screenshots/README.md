@@ -1,6 +1,6 @@
 # PdmApp screenshot gallery
 
-Actual screenshots of PdmApp **0.3.30 (21)** using the built-in synthetic demo. The gallery shows compact and wide layouts. Image pixels are unchanged from the original captures.
+Actual screenshots of PdmApp **0.3.31 (22)** using the built-in synthetic demo. The gallery shows compact and wide layouts. Image pixels are unchanged from the original captures.
 
 ## Fleet overview
 
@@ -28,7 +28,7 @@ A synthetic task result and log.
 
 ## Two-pane fleet overview
 
-The fleet and guest details arranged side by side.
+The fleet dashboard and guest list arranged side by side.
 
 ![Two-pane fleet overview in PdmApp demo](wide-overview.png)
 
@@ -46,7 +46,7 @@ Synthetic storage pools, bridge configuration, and documentation-range addresses
 
 ## Pending updates
 
-Synthetic update counts for the demo host and node.
+Available package updates for a synthetic node.
 
 ![Pending updates in PdmApp demo](pending-updates.png)
 
