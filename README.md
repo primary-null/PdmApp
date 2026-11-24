@@ -4,7 +4,9 @@
 
 PdmApp is an independent Android client for Proxmox Datacenter Manager. See your fleet at a glance, investigate resource usage, follow tasks, and manage supported guest operations from your phone, foldable, or tablet.
 
-<a href="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"><img align="right" src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="PdmApp application icon" width="144" height="144"></a>
+<p align="center">
+  <a href="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"><img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="PdmApp application icon" width="160" height="160"></a>
+</p>
 
 ## Highlights
 
