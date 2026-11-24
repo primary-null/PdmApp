@@ -75,7 +75,7 @@ The app currently targets Android API 36, compiles against API 37, and supports 
 
 ## Ownership and licensing
 
-Except where another license or notice is specified, original PdmApp code and project materials are licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 primary-null. See [NOTICE](NOTICE) for attribution and [THIRD_PARTY.md](THIRD_PARTY.md) for separately licensed components. Third-party licenses remain in effect. Dependency/provenance and branding reviews remain outstanding before a public release.
+Except where another license or notice is specified, original PdmApp code and project materials are licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 primary-null. See [NOTICE](NOTICE) for attribution and [THIRD_PARTY.md](THIRD_PARTY.md) for separately licensed components. Third-party licenses remain in effect.
 
 PdmApp is an independent project and is not affiliated with or endorsed by Proxmox Server Solutions GmbH. Proxmox is a registered trademark of Proxmox Server Solutions GmbH.
 
